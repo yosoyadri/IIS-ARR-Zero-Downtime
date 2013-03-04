@@ -39,3 +39,6 @@ pause
 
 The default behaviour of the script is just to call the Deploy funcion, which assumes all sites, farms, nodes and IPs 
 are setup. This funcions just deploys to the inactive node, swaps ARR to use it, and deactivates the active node.
+
+If you are using Windows 2012 / Windows 8 you can also use the utility funcions to script most of the 
+setup process. Create a Farm, the nodes and add the IPs to your local interface.
