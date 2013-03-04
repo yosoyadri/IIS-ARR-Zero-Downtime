@@ -30,8 +30,8 @@ Add-PSSnapin WebFarmSnapin
 
 Clear-Host
 
-$deploymentBlueNodeAddress   = "192.168.0.1"            #The ip of the node representing the blue site
-$deploymentGreenNodeAddress  = "192.168.0.2"            #The ip of the node representing the blue site
+$deploymentBlueNodeAddress   = "127.0.0.101"            #The ip of the node representing the blue site
+$deploymentGreenNodeAddress  = "127.0.0.102"            #The ip of the node representing the blue site
 $deploymentNodesPort         = 9090                     #The port used by both sites and nodes
 $path                        = "c:\PATH_TO_YOUR_CODE"   #The path where the deployment, blue and green sites are. Script will look for the deployment files in $path\$projectName and copy them to $path\$projectName-Green and $path\$projectName-Blue
 $projectName                 = "YourProyectName"        #The base name for the IIS balanced sites (Blue and Green) and the folders holding their application files
