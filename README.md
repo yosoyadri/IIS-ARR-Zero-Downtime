@@ -7,7 +7,7 @@ Only one site is running at a time. The script deploys to the stopped site, warm
 swaps the reverse proxy to route requests to the new site. Finally it stops the old site.
 
 Invoking the Deploy method assumes:
- 1. There 2 stopped sites called $projectName-Green and $projectName-Blue. Green bound only to $deploymentGreenNodeAddress and Blue only bound to deploymentBlueNodeAddress, both using port $deploymentNodesPort
+ 1. There are 2 stopped sites called $projectName-Green and $projectName-Blue. Green bound only to $deploymentGreenNodeAddress and Blue only bound to deploymentBlueNodeAddress, both using port $deploymentNodesPort
  2. There is a farm called $projectName-Farm
  3. The farm has 2 nodes, each pointing to one of the sites (Blue and Green)
  4. There is a rewrite rule to redirect requests to the farm when the port ({SERVER_PORT}) does not match $deploymentNodesPort
