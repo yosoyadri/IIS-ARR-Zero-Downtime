@@ -24,5 +24,5 @@ Invoking the Deploy method assumes:
    - "$deploymentBlueNodeAddress"     Unavailable
    - "$deploymentGreenNodeAddress"    Unavailable
 
- This script provides some utility funcions to automate the creating of the sites, farms and nodes
- but you don't need to use them. By calling "Deploy" the script assumes all the above has been setup.
+This script provides some utility funcions to automate the creating of the sites, farms and nodes
+but you don't need to use them. By calling "Deploy" the script assumes all the above has been setup.
