@@ -29,3 +29,13 @@ Invoking the Deploy method assumes:
 
 This script provides some utility funcions to automate the creating of the sites, farms and nodes
 but you don't need to use them. By calling "Deploy" the script assumes all the above has been setup.
+
+#Usage
+
+A bat file is all is required:
+
+powershell     -ExecutionPolicy unrestricted -file "FULL PATH TO PS1 FILE"
+pause
+
+The default behaviour of the script is just to call the Deploy funcion, which assumes all sites, farms, nodes and IPs 
+are setup. This funcions just deploys to the inactive node, swaps ARR to use it, and deactivates the active node.
