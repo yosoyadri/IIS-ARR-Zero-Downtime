@@ -1,7 +1,10 @@
 IIS-ARR-Zero-Downtime
 =====================
 
-Powershell script to achive zero downtime deployments using IIS ARR module
+Powershell script to achive zero downtime deployments using IIS ARR module. 
+It uses the Green / Blue deployment strategy: two sites and reverse proxy in front of them (ARR in this case).
+Only one site is running at a time. The script deploys to the stopped site, warms it up and the 
+swaps the reverse proxy to route requests to the new site. Finally it stops the old site.
 
 Invoking the Deploy method assumes:
  1. There 2 stopped sites called $projectName-Green and $projectName-Blue. Green bound only to $deploymentGreenNodeAddress and Blue only bound to deploymentBlueNodeAddress, both using port $deploymentNodesPort
