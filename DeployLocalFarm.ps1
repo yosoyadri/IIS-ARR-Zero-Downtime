@@ -30,12 +30,13 @@ Add-PSSnapin WebFarmSnapin
 
 Clear-Host
 
-$deploymentBlueNodeAddress   = "127.0.0.101"            #The ip of the node representing the blue site
-$deploymentGreenNodeAddress  = "127.0.0.102"            #The ip of the node representing the blue site
-$deploymentNodesPort         = 9090                     #The port used by both sites and nodes
-$path                        = "c:\PATH_TO_YOUR_CODE"   #The path where the deployment, blue and green sites are. Script will look for the deployment files in $path\$projectName and copy them to $path\$projectName-Green and $path\$projectName-Blue
-$projectName                 = "YourProyectName"        #The base name for the IIS balanced sites (Blue and Green) and the folders holding their application files
-$networkInterfaceAlias       = "Ethernet"               #The name of the network adapter where to create the IPs bound to the balanced sites
+$deploymentBlueNodeAddress   = "127.0.0.1"             #The ip of the node representing the blue site
+$deploymentGreenNodeAddress  = "127.0.0.2"             #The ip of the node representing the blue site
+$deploymentBlueNodePort      = 22001                   #The port used by both sites and nodes
+$deploymentGreenNodePort     = 22002                   #The port used by both sites and node2
+$path                        = "C:\inetpub\wwwroot\"   #The path where the deployment, blue and green sites are. Script will look for the deployment files in $path\$projectName and copy them to $path\$projectName-Green and $path\$projectName-Blue
+$projectName                 = "YOUR SITE NAME"        #The base name for the IIS balanced sites (Blue and Green) and the folders holding their application files
+$networkInterfaceAlias       = "Ethernet"              #The name of the network adapter where to create the IPs bound to the balanced sites
 
 Set-Location $path
 
@@ -51,7 +52,7 @@ Function CreateIpAddress($ip){
     $r = New-NetIPAddress –InterfaceAlias $networkInterfaceAlias -IPAddress $ip -PrefixLength 24
 }
 
-Function CreateBalancedSite($sufix, $ip) {
+Function CreateBalancedSite($sufix, $ip, $port) {
     $hasIp = HasIpAddress $ip
     if($hasIp -eq $false) {
         $r = CreateIpAddress($ip)
@@ -59,7 +60,7 @@ Function CreateBalancedSite($sufix, $ip) {
 
     $foundSite = Get-Website $projectName-$sufix
     if($foundSite -eq $null){
-        $r = CreateWebSite $sufix $deploymentNodesPort $ip "$path\$projectName-$sufix"
+        $r = CreateWebSite $sufix $port $ip "$path\$projectName-$sufix"
     }
 }
 
@@ -126,8 +127,8 @@ Function CreateFarmNode($nodeAddress) {
         New-Server -WebFarm $farmName -Address $deploymentBlueNodeAddress  
         New-Server -WebFarm $farmName -Address $deploymentGreenNodeAddress
 
-        SetNodeHttpPort "$projectName-Farm" $deploymentBlueNodeAddress $deploymentNodesPort -Enabled
-        SetNodeHttpPort "$projectName-Farm" $deploymentGreenNodeAddress $deploymentNodesPort
+        SetNodeHttpPort "$projectName-Farm" $deploymentBlueNodeAddress $deploymentBlueNodePort -Enabled
+        SetNodeHttpPort "$projectName-Farm" $deploymentGreenNodeAddress $deploymentGreenNodePort
     }
     else{
         #Find the node mapped to the site we are going to the deploy the files to
@@ -178,12 +179,14 @@ Function Deploy() {
         $stoppedSiteName     = "$projectName-Blue"
         $runningNodeAddress  = $deploymentGreenNodeAddress
         $runningSiteName     = "$projectName-Green"
+        $wakeUpPort          = $deploymentBlueNodePort
     }
     else {
         $stoppedNodeAddress  = $deploymentGreenNodeAddress
         $stoppedSiteName     = "$projectName-Green"
         $runningNodeAddress  = $deploymentBlueNodeAddress
         $runningSiteName     = "$projectName-Blue"
+        $wakeUpPort          = $deploymentGreenNodePort
     }
 
     #Get app host configuration file and the webfarms section within it
@@ -199,7 +202,6 @@ Function Deploy() {
         exit 1
     }
 
-    #The deployment site is no longer part of the farm, stop that site to start the archive deployment
     $deploymentSite      = Get-Item IIS:\Sites\$stoppedSiteName
     $deploymentSitePath  = $deploymentSite.PhysicalPath
     $deploymentFilesPath = $path + "\" + $projectName + "\"
@@ -210,27 +212,27 @@ Function Deploy() {
     $shell = New-Object -com shell.application 
     $destination = $shell.namespace($deploymentSitePath) 
     # If there is a zip file, use it to deploy
-    if ((Test-Path $archivePath)) {
-        Write-Host "Updating $deploymentPath to new version..."
+    if (Test-Path $archivePath) {
+        Write-Host "Extracting archive '$archivePath' to $deploymentFilesPath..."
         $zipFile = $shell.namespace($archivePath) 
         $destination.Copyhere($zipFile.items(), [System.Int32]1556)
     }
     else {
-        Write-Host "Copying raw files to $deploymentPath..."
-        $destination.CopyHere($deploymentFilesPath + "\*", 0x4 + 0x10)
+        Write-Host "Copying raw files to $deploymentSitePath..."
+        $destination.CopyHere($deploymentFilesPath + "\*", [System.Int32]1556)
     }
 
     Write-Host "Starting deployment website..."
     Start-Website $stoppedSiteName
 
     #wake up deployment site
-    $url = "http://" + $stoppedNodeAddress + ":$deploymentNodesPort/"
+    $url = "http://" + $stoppedNodeAddress + ":$wakeUpPort/"
     Write-Host "Starting deployment website $url..."
     $page = (New-Object System.Net.WebClient).DownloadString($url)
 
     #Swap farm nodes
     ChangeNodeStatus $farm $stoppedNodeAddress "Start"
-    ChangeNodeStatus $farm $runningNodeAddress "GracefulStop"
+    ChangeNodeStatus $farm $runningNodeAddress "Drain"
 
     #Stop old code website
     Stop-Website $runningSiteName
