@@ -1,8 +1,9 @@
 # Invoking the Deploy method assumes:
-# 1. There are 2 stopped sites called $projectName-Green and $projectName-Blue. Green bound only to $deploymentGreenNodeAddress and Blue only bound to deploymentBlueNodeAddress, both using port $deploymentNodesPort
+# 1. There 2 stopped sites called $projectName-Green and $projectName-Blue. Green bound only to $deploymentGreenNodeAddress and Blue only bound to deploymentBlueNodeAddress, both using port $deploymentNodesPort
 # 2. There is a farm called $projectName-Farm
 # 3. The farm has 2 nodes, each pointing to one of the sites (Blue and Green)
 # 4. There is a rewrite rule to redirect requests to the farm when the port ({SERVER_PORT}) does not match $deploymentNodesPort
+# 5. There is a healthcheck in the farm pointing to the main url of the farm
 #
 # File Strcuture
 # - C:\PATH_TO_YOUR_CODE\$projectName        (This folder holds the files to be deployed)
@@ -21,6 +22,8 @@
 #
 # This script provides some utility funcions to automate the creating of the sites, farms and nodes
 # but you don't need to use them. By calling "Deploy" the script assumes all the above has been setup.
+#
+# XML Schema for ARR: %windir%\system32\inetsrv\config\schema\arr_schema.xml
 
 
 [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.Web.Administration")
@@ -70,7 +73,7 @@ Function CreateWebSite($sufix, $port, $ip, $path) {
     $r = New-Website -Name "$projectName-$sufix" -Port $port -IPAddress $ip -PhysicalPath $path
 } 
 
-Function ChangeNodeStatus($farm, $nodeAddress, $status){ #status can be "GracefulStop", "Start",...
+Function ChangeNodeStatus($farm, $nodeAddress, $status){ #status can be "Start", "Drain", "ForcefulStop", "GracefulStop"
 
     #Find the node mapped to the site we are going to the deploy the files to
     $nodes          = $farm.GetCollection()
@@ -81,12 +84,30 @@ Function ChangeNodeStatus($farm, $nodeAddress, $status){ #status can be "Gracefu
     }
     $arrObject = $deploymentNode.GetChildElement("applicationRequestRouting")
 
-    #Gracefully stop the deployment node
+    #Change the node status
     Write-Host "Changing status for node $nodeAddress to $status"
     $setStateMethod     = $arrObject.Methods["SetState"]
     $setStateMethodInst = $setStateMethod.CreateInstance()
     $newStateProp       = $setStateMethodInst.Input.Attributes[0].Value = $status
     $setStateMethodInst.Execute()
+}
+
+Function ChangeNodeToHealthy($farm, $nodeAddress) {
+    #Find the node mapped to the site we are going to the deploy the files to
+    $nodes          = $farm.GetCollection()
+    $deploymentNode = $nodes | Where-Object { $_.GetAttributeValue("address") -eq $nodeAddress }
+    if($deploymentNode -eq $null){
+        Write-Error "Could not find deploymentNode with address $nodeAddress"
+        exit 1
+    }
+    $arrObject = $deploymentNode.GetChildElement("applicationRequestRouting")
+    #Change the node status
+    Write-Host "Changing health status for node $nodeAddress to healthy..."
+
+    $setStateMethod     = $arrObject.Methods["SetHealthy"]
+    $setStateMethodInst = $setStateMethod.CreateInstance()
+    $setStateMethodInst.Execute()
+
 }
 
 Function SetNodeHttpPort($farmName, $ip, $port) {
@@ -231,8 +252,13 @@ Function Deploy() {
     $page = (New-Object System.Net.WebClient).DownloadString($url)
 
     #Swap farm nodes
+    ChangeNodeToHealthy $farm $stoppedNodeAddress
     ChangeNodeStatus $farm $stoppedNodeAddress "Start"
     ChangeNodeStatus $farm $runningNodeAddress "Drain"
+    
+    #Wait a minute for connections to drain
+    Write-Host "Waiting 60 secs for connections to drain..."
+    Start-Sleep -s 60
 
     #Stop old code website
     Stop-Website $runningSiteName
