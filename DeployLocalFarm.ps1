@@ -240,7 +240,7 @@ Function Deploy() {
     }
     else {
         Write-Host "Copying raw files to $deploymentSitePath..."
-        $destination.CopyHere($deploymentFilesPath + "\*", [System.Int32]1556)
+        Copy-Item -Path ($deploymentFilesPath + "\*") -Filter *.* -Destination $deploymentSitePath -Recurse -Force
     }
 
     Write-Host "Starting deployment website..."
